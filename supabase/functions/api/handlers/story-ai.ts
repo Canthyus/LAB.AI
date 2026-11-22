@@ -39,6 +39,22 @@ async function replaceSequences(admin: any, userId: string, projectId: string, s
   return rows.length;
 }
 
+/** Quando a IA não devolve a lista de sequências, monta-a a partir dos cabeçalhos "SEQUÊNCIA n — título" do próprio roteiro. */
+function splitSequences(content: string, targetSeconds: number) {
+  const lines = content.split(/\r?\n/);
+  const heads: { i: number; title: string }[] = [];
+  lines.forEach((ln, i) => {
+    const m = ln.match(/^\s*(?:SEQU[ÊE]NCIA|SEQUENCE|SECUENCIA)\s*\d*\s*[—–:.\-]*\s*(.*)$/i);
+    if (m) heads.push({ i, title: (m[1] || ln).trim().slice(0, 150) || `Sequência ${heads.length + 1}` });
+  });
+  if (!heads.length) return [{ title: "Roteiro completo", summary: content.slice(0, 300), estimated_duration_seconds: Math.max(1, targetSeconds || 60) }];
+  const per = Math.max(3, Math.round((targetSeconds || 60) / heads.length));
+  return heads.map((h, k) => {
+    const body = lines.slice(h.i + 1, k + 1 < heads.length ? heads[k + 1].i : lines.length).join(" ").replace(/\s+/g, " ").trim();
+    return { title: h.title, summary: body.slice(0, 300), estimated_duration_seconds: per };
+  });
+}
+
 export default async function (req: Request): Promise<unknown> {
   const { user, admin } = await requireUser(req);
   const body = await readJson<Body>(req);
@@ -78,7 +94,7 @@ export default async function (req: Request): Promise<unknown> {
       title: s(j.title, 200), logline: s(j.logline, 500), content, status: "draft",
     }).select("id").single();
     if (error || !script) throw new HttpError(500, "Falha ao salvar o roteiro");
-    const seqs = await replaceSequences(admin, user.id, projectId, script.id, Array.isArray(j.sequences) ? j.sequences : []);
+    const seqs = await replaceSequences(admin, user.id, projectId, script.id, Array.isArray(j.sequences) && j.sequences.length ? j.sequences : splitSequences(content, project.target_duration_seconds));
     await admin.from("projects").update({ current_step: "script", status: "in_progress", step_status: { ...(project.step_status ?? {}), script: "pending" } }).eq("id", projectId);
     return { script_id: script.id, sequences: seqs };
   }
@@ -115,8 +131,12 @@ export default async function (req: Request): Promise<unknown> {
     const { data: script } = await admin.from("scripts").select("*").eq("project_id", projectId).eq("user_id", user.id).order("version", { ascending: false }).limit(1).maybeSingle();
     if (!script) throw new HttpError(409, "Gere o roteiro primeiro", "no_script");
     if (script.status !== "approved" && project.production_mode !== "automatic") throw new HttpError(409, "Aprove o roteiro antes de gerar o storyboard", "script_not_approved");
-    const { data: seqs } = await admin.from("sequences").select("*").eq("project_id", projectId).eq("user_id", user.id).order("position");
-    if (!seqs?.length) throw new HttpError(409, "O roteiro não tem sequências", "no_sequences");
+    let { data: seqs } = await admin.from("sequences").select("*").eq("project_id", projectId).eq("user_id", user.id).order("position");
+    if (!seqs?.length) {
+      await replaceSequences(admin, user.id, projectId, script.id, splitSequences(script.content, project.target_duration_seconds));
+      seqs = (await admin.from("sequences").select("*").eq("project_id", projectId).eq("user_id", user.id).order("position")).data;
+    }
+    if (!seqs?.length) throw new HttpError(409, "Não foi possível dividir o roteiro em sequências", "no_sequences");
     const { count } = await admin.from("scenes").select("id", { count: "exact", head: true }).eq("project_id", projectId);
     if ((count ?? 0) > 0 && !body.replace) throw new HttpError(409, "Já existem cenas. Regerar apaga as cenas atuais.", "needs_replace");
 

@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { ApiError, errMsg, invoke } from "../lib/api";
 import type { Project } from "../lib/types";
+import { ensureSequences } from "../lib/sequences";
 import { Spinner } from "./ui";
 
 type St = "wait" | "run" | "done" | "skip" | "err";
@@ -95,6 +96,7 @@ export default function AutoRun({ project, onDone }: { project: Project; onDone:
 
       // 4. storyboard
       i = 3; set(i, "run");
+      if (script) await ensureSequences(id, script.id, script.content, project.target_duration_seconds);
       let { data: scenes } = await supabase.from("scenes").select("id").eq("project_id", id);
       if (!scenes?.length) {
         await withRetry(() => invoke("story-ai", { action: "generate_storyboard", project_id: id, replace: true }), stopped);

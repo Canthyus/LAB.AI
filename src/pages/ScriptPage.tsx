@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { ApiError, errMsg, invoke } from "../lib/api";
 import type { Project, Script, Sequence } from "../lib/types";
+import { ensureSequences } from "../lib/sequences";
 import { Badge, ErrorBox, Spinner } from "../components/ui";
 
 const OPS: [string, string, boolean][] = [
@@ -137,7 +138,12 @@ export default function ScriptPage() {
 
           <section className="card space-y-3 p-5">
             <div className="flex items-center justify-between"><h2 className="font-medium text-white">Sequências</h2><span className="text-xs text-zinc-400">{seqs.length} · {total}s estimados (alvo {project?.target_duration_seconds}s)</span></div>
-            {!seqs.length ? <p className="text-sm text-zinc-500">Sem sequências.</p> : seqs.map((q, i) => (
+            {!seqs.length ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-800/60 bg-amber-950/30 px-3 py-2 text-sm text-amber-200">
+                <span>Este roteiro está sem sequências, e o storyboard precisa delas.</span>
+                <button className="btn-primary" disabled={busy !== null} onClick={() => run("seq", async () => { await ensureSequences(id!, script.id, script.content, project?.target_duration_seconds ?? 60); await load(); })}>{busy === "seq" && <Spinner />}Criar sequências a partir do texto</button>
+              </div>
+            ) : seqs.map((q, i) => (
               <div key={q.id} className="grid gap-2 rounded-lg bg-ink-900 p-3 sm:grid-cols-[1fr_2fr_90px]">
                 <input className="input" value={q.title} onChange={(e) => setSeq(i, { title: e.target.value })} onBlur={() => saveSeq(q)} />
                 <input className="input" value={q.summary ?? ""} onChange={(e) => setSeq(i, { summary: e.target.value })} onBlur={() => saveSeq(q)} />
