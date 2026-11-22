@@ -1,11 +1,8 @@
 name: Deploy backend (Supabase)
 
 # Aplica as migrações, grava o segredo de criptografia e publica as Edge Functions.
-# Roda sozinho a cada alteração em supabase/ na branch main, ou manualmente em Actions → Run workflow.
+# Backend já publicado no Supabase; este fluxo é opcional e só roda manualmente em Actions → Run workflow.
 on:
-  push:
-    branches: [main]
-    paths: ["supabase/**", ".github/workflows/deploy-backend.yml"]
   workflow_dispatch: {}
 
 jobs:
