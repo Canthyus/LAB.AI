@@ -1,0 +1,5 @@
+project_id = "lab-ai"
+
+# Uma única função com rotas internas; a validação do usuário é feita no código (requireUser).
+[functions.api]
+verify_jwt = false

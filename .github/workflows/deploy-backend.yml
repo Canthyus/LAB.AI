@@ -1,0 +1,41 @@
+name: Deploy backend (Supabase)
+
+# Aplica as migrações, grava o segredo de criptografia e publica as Edge Functions.
+# Roda sozinho a cada alteração em supabase/ na branch main, ou manualmente em Actions → Run workflow.
+on:
+  push:
+    branches: [main]
+    paths: ["supabase/**", ".github/workflows/deploy-backend.yml"]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      ENC_KEY: ${{ secrets.CREDENTIALS_ENCRYPTION_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Conferir segredos
+        run: |
+          for v in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD PROJECT_REF ENC_KEY; do
+            if [ -z "${!v}" ]; then echo "Falta o segredo do GitHub para $v (veja SETUP.md)"; exit 1; fi
+          done
+      - run: supabase link --project-ref "$PROJECT_REF"
+      - name: Migrações do banco
+        run: echo y | supabase db push
+      - name: Segredo de criptografia das chaves
+        run: supabase secrets set CREDENTIALS_ENCRYPTION_KEY="$ENC_KEY" --project-ref "$PROJECT_REF"
+      - name: Edge Functions
+        run: supabase functions deploy api --project-ref "$PROJECT_REF" --no-verify-jwt
+      - name: Entrar direto após criar conta (desliga confirmação de e-mail)
+        continue-on-error: true
+        run: |
+          curl -sS -X PATCH "https://api.supabase.com/v1/projects/$PROJECT_REF/config/auth" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" \
+            -d '{"mailer_autoconfirm": true}'
