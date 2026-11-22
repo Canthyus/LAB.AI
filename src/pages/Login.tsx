@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { supabase } from "../lib/supabase";
 import { ErrorBox, Spinner } from "../components/ui";
+import Logo from "../components/Logo";
 
 export default function Login() {
   const [mode, setMode] = useState<"in" | "up">("in");
@@ -25,11 +26,12 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(ellipse_at_top,rgba(124,58,237,0.2),transparent_55%)] p-4">
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(ellipse_at_top,rgba(34,211,238,0.10),transparent_55%)] p-4">
       <form onSubmit={submit} className="card w-full max-w-sm space-y-4 p-7">
+        <Logo size="lg" tagline={false} />
         <div>
-          <div className="bg-gradient-to-r from-violet-400 to-blue-400 bg-clip-text text-2xl font-bold text-transparent">Lab.AI</div>
-          <p className="text-sm text-zinc-400">Seu estúdio cinematográfico com inteligência artificial.</p>
+          <div className="eyebrow">{mode === "in" ? "Acesso ao laboratório" : "Novo pesquisador"}</div>
+          <p className="mt-1 text-sm text-zinc-400">Seu estúdio cinematográfico com inteligência artificial.</p>
         </div>
         <ErrorBox message={err} />
         {info && <div className="rounded-lg border border-emerald-900/60 bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">{info}</div>}

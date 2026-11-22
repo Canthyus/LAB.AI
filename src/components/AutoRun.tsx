@@ -2,6 +2,7 @@
 // de cada etapa, em ordem, respeitando limites (espera e repete em 429). Pode ser parada a qualquer momento;
 // ao reabrir, retoma do que ainda falta (cada etapa só faz o que não existe).
 import { useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { ApiError, errMsg, invoke } from "../lib/api";
 import type { Project } from "../lib/types";
@@ -37,13 +38,14 @@ export default function AutoRun({ project, onDone }: { project: Project; onDone:
   const [st, setSt] = useState<St[]>(LABELS.map(() => "wait"));
   const [running, setRunning] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [waiting, setWaiting] = useState<null | "script">(null);
   const stop = useRef(false);
   const set = (i: number, s: St) => setSt((l) => l.map((x, k) => (k === i ? s : x)));
   const stopped = () => stop.current;
   const id = project.id;
 
   async function go() {
-    stop.current = false; setRunning(true); setErr(null); setSt(LABELS.map(() => "wait"));
+    stop.current = false; setRunning(true); setErr(null); setWaiting(null); setSt(LABELS.map(() => "wait"));
     let i = 0;
     try {
       // 1. personagens
@@ -84,6 +86,11 @@ export default function AutoRun({ project, onDone }: { project: Project; onDone:
       if (full && script && script.status !== "approved") {
         await supabase.from("scripts").update({ status: "approved" }).eq("id", script.id);
         await supabase.from("projects").update({ step_status: { ...project.step_status, characters: "approved", script: "approved" } }).eq("id", id);
+      }
+
+      // No modo assistido, o roteiro precisa da sua aprovação: pausa aqui (não é erro) e retoma depois.
+      if (!full && script && script.status !== "approved") {
+        set(2, "done"); setWaiting("script"); setRunning(false); return;
       }
 
       // 4. storyboard
@@ -131,13 +138,19 @@ export default function AutoRun({ project, onDone }: { project: Project; onDone:
           <h2 className="font-medium text-white">{full ? "Produção automática" : "Produção assistida"}</h2>
           <p className="text-xs text-zinc-400">{full
             ? "Cria tudo em sequência, aprova automaticamente e envia os vídeos para a fila, respeitando os limites da API."
-            : "Cria tudo até os planos; você revisa e aprova cada etapa antes de gerar vídeos."} Mantenha esta aba aberta.</p>
+            : "Cria personagens e roteiro, pausa para você aprovar o roteiro, e então cria storyboard e planos. Vídeos você gera depois, com sua aprovação."} Mantenha esta aba aberta.</p>
         </div>
         {running ? <button className="btn-danger" onClick={() => { stop.current = true; }}>Parar</button> : <button className="btn-primary" onClick={go}>Iniciar</button>}
       </div>
       <ul className="grid gap-1 text-sm sm:grid-cols-2">
         {LABELS.map((l, i) => <li key={l} className={`flex items-center gap-2 ${st[i] === "err" ? "text-red-300" : st[i] === "done" ? "text-emerald-300" : "text-zinc-400"}`}><span className="w-4 text-center">{icon(st[i])}</span>{l}</li>)}
       </ul>
+      {waiting === "script" && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-800/60 bg-amber-950/30 px-3 py-2 text-sm text-amber-200">
+          <span>Roteiro pronto para revisão. Leia, edite se quiser e aprove; depois volte aqui e clique em Iniciar para continuar com o storyboard.</span>
+          <Link to={`/projects/${id}/script`} className="btn-primary shrink-0">Revisar e aprovar roteiro →</Link>
+        </div>
+      )}
       {err && <div className="rounded-lg border border-red-900/60 bg-red-950/40 px-3 py-2 text-sm text-red-300">{err} — corrija e clique em Iniciar de novo: o que já existe é reaproveitado.</div>}
     </section>
   );

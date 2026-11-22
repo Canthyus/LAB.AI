@@ -264,6 +264,12 @@ async function applyTarget(admin: Admin, job: any, saved: { path: string; mime: 
       storage_path: saved.path, is_primary: !!t.is_primary, job_id: job.id,
     });
   }
+  if (t.type === "style_preview" && t.style_id) {
+    await admin.from("style_previews").upsert(
+      { user_id: userId, style_id: t.style_id, storage_path: saved.path, job_id: job.id },
+      { onConflict: "user_id,style_id" },
+    );
+  }
   if (t.type === "storyboard" && t.scene_id) {
     await admin.from("storyboards").insert({
       user_id: userId, project_id: job.project_id, scene_id: t.scene_id,
@@ -288,7 +294,7 @@ async function processImage(admin: Admin, job: any, creds: Credentials) {
     prompt: req.prompt, model: job.model, storage_path: saved.path, params: { size: req.size, references: req.reference_paths ?? [] },
   }).select("id").single();
 
-  await admin.from("media_library").insert({
+  if (job.purpose !== "style_preview") await admin.from("media_library").insert({
     user_id: job.user_id, project_id: job.project_id,
     kind: job.target?.type === "character_reference" ? "character" : job.purpose === "storyboard" ? "storyboard" : "image",
     name: job.target?.name ?? `${job.purpose} ${new Date().toISOString().slice(0, 16).replace("T", " ")}`,

@@ -5,6 +5,8 @@ import { useAuth } from "../hooks/useAuth";
 import type { VisualStyle } from "../lib/types";
 import { Empty, ErrorBox, PageHeader, Spinner } from "../components/ui";
 import { errMsg } from "../lib/api";
+import StyleCover from "../components/StyleCover";
+import { useStylePreviews } from "../hooks/useStylePreviews";
 
 export const Swatches = ({ palette }: { palette?: string[] }) => (
   <div className="flex h-2 overflow-hidden rounded-full">{(palette ?? []).map((c, i) => <div key={i} className="flex-1" style={{ background: c }} />)}</div>
@@ -15,6 +17,7 @@ const blank = { name: "", description: "", lighting: "", photography: "", palett
 export default function Styles() {
   const { styles, loading, reload } = useStyles();
   const { user } = useAuth();
+  const sp = useStylePreviews();
   const [sel, setSel] = useState<VisualStyle | null>(null);
   const [form, setForm] = useState<typeof blank | null>(null);
   const [busy, setBusy] = useState(false);
@@ -52,8 +55,8 @@ export default function Styles() {
   return (
     <>
       <PageHeader title="Universos Visuais" subtitle="O estilo escolhido é aplicado a personagens, cenários, storyboard e vídeos do projeto."
-        actions={<button className="btn-primary" onClick={() => setForm({ ...blank })}>Criar estilo personalizado</button>} />
-      <ErrorBox message={err} />
+        actions={<><button className="btn-ghost" disabled={sp.busy || sp.pendingCount > 0} onClick={() => sp.generate()}>{(sp.busy || sp.pendingCount > 0) && <Spinner />}{sp.pendingCount > 0 ? `Gerando (${sp.pendingCount})…` : "Gerar prévias que faltam"}</button><button className="btn-primary" onClick={() => setForm({ ...blank })}>Criar estilo personalizado</button></>} />
+      <ErrorBox message={err ?? sp.err} />
       {form && (
         <form onSubmit={create} className="card mb-6 grid gap-3 p-5 sm:grid-cols-2">
           {f("name", "Nome")}{f("description", "Descrição")}
@@ -70,16 +73,21 @@ export default function Styles() {
       {loading ? <Spinner /> : !styles.length ? <Empty title="Nenhum estilo encontrado" hint="Aplique as migrações do banco (0004_seed_models_styles.sql) para carregar a biblioteca." /> : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {styles.map((s) => (
-            <button key={s.id} onClick={() => setSel(sel?.id === s.id ? null : s)} className={`card space-y-2 p-4 text-left transition hover:border-violet-500/60 ${sel?.id === s.id ? "border-violet-500" : ""}`}>
-              <Swatches palette={s.config.palette} />
+            <button key={s.id} onClick={() => setSel(sel?.id === s.id ? null : s)} className={`card overflow-hidden text-left transition hover:border-violet-500/60 ${sel?.id === s.id ? "border-violet-500" : ""}`}>
+              <StyleCover style={s} path={sp.previews[s.id]} pending={sp.pendingIds.has(s.id)} />
+              <div className="space-y-2 p-4">
               <div className="flex items-center justify-between"><span className="font-medium text-white">{s.name}</span>{s.is_custom && <span className="text-[11px] text-violet-300">personalizado</span>}</div>
               <p className="text-xs text-zinc-400">{s.description}</p>
               {sel?.id === s.id && (
                 <dl className="space-y-1 border-t border-ink-600 pt-2 text-xs text-zinc-400">
                   {([["Iluminação", s.config.lighting], ["Fotografia", s.config.photography], ["Texturas", s.config.textures], ["Cenários", s.config.environments], ["Linguagem", s.config.cinematic_language]] as const).map(([k, v]) => v && <div key={k}><dt className="inline text-zinc-300">{k}: </dt><dd className="inline">{v}</dd></div>)}
-                  {s.is_custom && <span role="button" className="mt-2 inline-block text-red-400 hover:underline" onClick={(e) => { e.stopPropagation(); remove(s); }}>Excluir estilo</span>}
+                  <div className="flex gap-4 pt-1">
+                    <span role="button" className="text-violet-300 hover:underline" onClick={(e) => { e.stopPropagation(); sp.generate(s.id); }}>{sp.previews[s.id] ? "Gerar nova prévia" : "Gerar prévia"}</span>
+                    {s.is_custom && <span role="button" className="text-red-400 hover:underline" onClick={(e) => { e.stopPropagation(); remove(s); }}>Excluir estilo</span>}
+                  </div>
                 </dl>
               )}
+              </div>
             </button>
           ))}
         </div>

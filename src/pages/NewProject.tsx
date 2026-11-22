@@ -4,7 +4,8 @@ import { supabase } from "../lib/supabase";
 import { useStyles } from "../hooks/useData";
 import { errMsg } from "../lib/api";
 import { ErrorBox, PageHeader, Spinner } from "../components/ui";
-import { Swatches } from "./Styles";
+import StyleCover from "../components/StyleCover";
+import { useStylePreviews } from "../hooks/useStylePreviews";
 import type { Aspect, ProductionMode } from "../lib/types";
 
 export const FORMATS = [["short_film", "Curta-metragem"], ["trailer", "Trailer"], ["clip", "Clipe"], ["episode", "Episódio"]] as const;
@@ -17,6 +18,7 @@ export const MODES: [ProductionMode, string, string][] = [
 export default function NewProject() {
   const nav = useNavigate();
   const { styles } = useStyles();
+  const sp = useStylePreviews();
   const [f, setF] = useState({
     name: "", idea: "", genre: "", style: "", format: "short_film", aspect: "16:9" as Aspect, duration: 60,
     language: "pt-BR", chars: "", mode: "assisted" as ProductionMode,
@@ -58,16 +60,26 @@ export default function NewProject() {
           </div>
         </section>
 
-        <section className="card p-5">
-          <label className="label">Universo visual</label>
+        <section className="card space-y-3 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label className="label !mb-0">Universo visual</label>
+            {styles.some((s) => !sp.previews[s.id]) && (
+              <button type="button" className="btn-ghost" disabled={sp.busy || sp.pendingCount > 0} onClick={() => sp.generate()}>
+                {(sp.busy || sp.pendingCount > 0) && <Spinner />}{sp.pendingCount > 0 ? `Gerando prévias (${sp.pendingCount})…` : "Gerar prévias com IA"}
+              </button>
+            )}
+          </div>
+          <ErrorBox message={sp.err} />
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {styles.map((s) => (
               <button type="button" key={s.id} onClick={() => set("style", f.style === s.id ? "" : s.id)}
-                className={`space-y-2 rounded-lg border p-3 text-left text-sm transition ${f.style === s.id ? "border-violet-500 bg-violet-600/10" : "border-ink-600 hover:border-ink-500"}`}>
-                <Swatches palette={s.config.palette} /><div className="text-zinc-100">{s.name}</div>
+                className={`overflow-hidden rounded-lg border text-left text-sm transition ${f.style === s.id ? "border-violet-500 ring-2 ring-violet-500/40" : "border-ink-600 hover:border-ink-500"}`}>
+                <StyleCover style={s} path={sp.previews[s.id]} pending={sp.pendingIds.has(s.id)} />
+                <div className="flex items-center justify-between px-3 py-2"><span className="text-zinc-100">{s.name}</span>{f.style === s.id && <span className="text-violet-300">✓</span>}</div>
               </button>
             ))}
           </div>
+          <p className="text-xs text-zinc-500">As prévias são geradas uma vez com a sua chave da Agnes (1 imagem por estilo; imagens não consomem tokens de texto) e ficam salvas.</p>
         </section>
 
         <section className="card grid gap-4 p-5 sm:grid-cols-3">

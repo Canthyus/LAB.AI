@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { ApiError, errMsg, invoke } from "../lib/api";
 import type { Project, Script, Sequence } from "../lib/types";
@@ -90,6 +90,18 @@ export default function ScriptPage() {
   return (
     <div className="space-y-6">
       <ErrorBox message={err} />
+      {script && script.status !== "approved" && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-800/60 bg-amber-950/30 px-4 py-3 text-sm text-amber-200">
+          <span>Este roteiro aguarda a sua aprovação para liberar o storyboard.</span>
+          <button className="btn-primary" disabled={busy !== null} onClick={approve}>{busy === "approve" && <Spinner />}Aprovar roteiro</button>
+        </div>
+      )}
+      {script && script.status === "approved" && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-800/60 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">
+          <span>Roteiro aprovado.</span>
+          <Link to={`/projects/${id}`} className="btn-primary">Voltar à Visão geral e continuar →</Link>
+        </div>
+      )}
       {note && <div className="rounded-lg border border-amber-900/60 bg-amber-950/30 px-3 py-2 text-sm text-amber-200">{note}</div>}
 
       <section className="card space-y-3 p-5">

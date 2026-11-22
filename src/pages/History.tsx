@@ -32,6 +32,16 @@ export default function HistoryPage() {
       <ErrorBox message={err} />
       {note && <div className="mb-4 rounded-lg border border-amber-900/60 bg-amber-950/30 px-3 py-2 text-sm text-amber-200">{note}</div>}
 
+      <details className="card mb-6 p-4 text-sm text-zinc-400">
+        <summary className="cursor-pointer font-medium text-zinc-200">Como o consumo é contado</summary>
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          <li><b className="text-zinc-300">Texto</b> (personagens, roteiro, cenas, planos): conta tokens de entrada + saída. Um roteiro completo costuma gastar de 1.500 a 3.000; extrair personagens, cerca de 1.500.</li>
+          <li><b className="text-zinc-300">Imagem</b>: conta por imagem (“Image Pics” no painel da Agnes), não por token.</li>
+          <li><b className="text-zinc-300">Vídeo</b>: conta por segundo gerado, e cada tentativa que termina conta.</li>
+          <li>A coluna “Detalhe” abaixo mostra entrada+saída de cada geração de texto.</li>
+        </ul>
+      </details>
+
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         {([["Tokens de entrada", sum((r) => r.prompt_tokens)], ["Tokens de saída", sum((r) => r.completion_tokens)], ["Imagens geradas", sum((r) => r.images_count)], ["Vídeo gerado hoje (s)", Math.round(videoToday)]] as const).map(([l, v]) => (
           <div key={l} className="card p-4"><div className="text-xs uppercase tracking-wide text-zinc-400">{l}</div><div className="mt-1 text-2xl font-semibold text-white">{v}</div></div>

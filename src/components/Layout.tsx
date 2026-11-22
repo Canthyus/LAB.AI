@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useJobs } from "../hooks/useJobs";
 import { Progress } from "./ui";
+import Logo from "./Logo";
 
 export const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -22,6 +23,8 @@ export const NAV = [
   { to: "/settings", label: "Configurações", icon: Settings },
 ];
 
+const GROUPS: Record<string, string> = { "/": "Laboratório", "/characters": "Pré-produção", "/video": "Produção", "/history": "Sistema" };
+
 export default function Layout() {
   const { user, signOut } = useAuth();
   const { active } = useJobs();
@@ -30,16 +33,16 @@ export default function Layout() {
 
   const sidebar = (
     <div className="flex h-full flex-col bg-gradient-to-b from-ink-900 to-ink-950">
-      <div className="px-5 py-5">
-        <div className="bg-gradient-to-r from-violet-400 to-blue-400 bg-clip-text text-xl font-bold tracking-tight text-transparent">Lab.AI</div>
-        <div className="text-[11px] text-zinc-500">Estúdio cinematográfico com IA</div>
-      </div>
+      <div className="border-b border-ink-700 px-5 py-5"><Logo /></div>
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3">
         {NAV.map(({ to, label, icon: Icon, end }) => (
-          <NavLink key={to} to={to} end={end} onClick={() => setOpen(false)}
-            className={({ isActive }) => `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${isActive ? "bg-violet-600/20 text-white ring-1 ring-violet-500/40" : "text-zinc-400 hover:bg-ink-700/60 hover:text-zinc-100"}`}>
-            <Icon className="h-4 w-4 shrink-0" />{label}
-          </NavLink>
+          <div key={to}>
+            {GROUPS[to] && <div className="eyebrow !text-zinc-500 px-3 pb-1 pt-4">{GROUPS[to]}</div>}
+            <NavLink to={to} end={end} onClick={() => setOpen(false)}
+              className={({ isActive }) => `flex items-center gap-3 rounded-md border-l-2 px-3 py-2 text-sm transition ${isActive ? "border-lab bg-lab/10 text-white" : "border-transparent text-zinc-400 hover:bg-ink-700/60 hover:text-zinc-100"}`}>
+              <Icon className="h-4 w-4 shrink-0" />{label}
+            </NavLink>
+          </div>
         ))}
       </nav>
       {active.length > 0 && (
@@ -67,9 +70,9 @@ export default function Layout() {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-3 border-b border-ink-700 px-4 py-3 lg:hidden">
           <button onClick={() => setOpen((v) => !v)} aria-label="Menu">{open ? <X /> : <Menu />}</button>
-          <span className="font-semibold">Lab.AI</span>
+          <Logo tagline={false} />
         </header>
-        <main className="flex-1 overflow-y-auto bg-[radial-gradient(ellipse_at_top_right,rgba(124,58,237,0.10),transparent_50%)] p-5 lg:p-8">
+        <main className="flex-1 overflow-y-auto bg-[radial-gradient(ellipse_at_top_right,rgba(34,211,238,0.06),transparent_50%)] p-5 lg:p-8">
           <div className="mx-auto max-w-6xl animate-fadeIn"><Outlet /></div>
         </main>
       </div>

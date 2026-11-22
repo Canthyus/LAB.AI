@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { invoke, errMsg } from "../lib/api";
 import { useStyles } from "../hooks/useData";
-import { useCharacterRefs } from "../hooks/useCharacterRefs";
+import { useCharacterRefs, primaryOf } from "../hooks/useCharacterRefs";
 import { useJobs } from "../hooks/useJobs";
 import { STEPS, type Aspect, type Character, type Project } from "../lib/types";
 import CharacterCard from "../components/CharacterCard";
@@ -84,12 +84,34 @@ export default function ProjectDetail() {
     await loadChars();
   });
 
-  const allApproved = chars.length > 0 && chars.every((c) => c.status === "approved");
-  const approveStep = () => run("approve", async () => {
+  const hasImg = (cid: string) => !!primaryOf(refs[cid]);
+  const approvedCount = chars.filter((c) => c.status === "approved").length;
+  const stepDone = p?.step_status?.characters === "approved";
+
+  const toggleChar = (c: Character) => run("char-" + c.id, async () => {
+    const next = c.status === "approved" ? "draft" : "approved";
+    if (next === "approved" && !hasImg(c.id)) throw new Error(`"${c.name}" ainda não tem imagem principal. Gere ou envie uma imagem antes de aprovar.`);
+    const { error } = await supabase.from("characters").update({ status: next }).eq("id", c.id);
+    if (error) throw error;
+    if (next === "draft" && stepDone) {
+      const step_status = { ...p!.step_status, characters: "pending" as const };
+      await supabase.from("projects").update({ step_status }).eq("id", p!.id);
+      setP({ ...p!, step_status });
+    }
+    await loadChars();
+  });
+
+  // Aprova todos os personagens (exige imagem principal em cada um) e conclui a etapa de uma vez.
+  const approveAll = () => run("approve", async () => {
+    const without = chars.filter((c) => !hasImg(c.id));
+    if (without.length) throw new Error(`Falta imagem principal em: ${without.map((c) => c.name).join(", ")}. Gere as imagens (abra o personagem) e tente de novo.`);
+    const { error: e1 } = await supabase.from("characters").update({ status: "approved" }).in("id", chars.map((c) => c.id));
+    if (e1) throw e1;
     const step_status = { ...p!.step_status, characters: "approved" as const };
     const { error } = await supabase.from("projects").update({ step_status, current_step: "script" }).eq("id", p!.id);
     if (error) throw error;
     setP({ ...p!, step_status, current_step: "script" });
+    await loadChars();
   });
 
   const removeProject = async () => {
@@ -161,7 +183,10 @@ export default function ProjectDetail() {
               <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
                 {chars.map((c) => (
                   <CharacterCard key={c.id} c={c} refs={refs[c.id]} to={`/characters/${c.id}?project=${p.id}`}
-                    extra={<button className="text-[11px] text-red-400 hover:underline" onClick={() => removeFromProject(c.id)}>Remover do projeto</button>} />
+                    extra={<div className="flex items-center justify-between gap-2 pt-1">
+                      <button className={c.status === "approved" ? "btn-ghost !px-2 !py-1 text-xs" : "btn-primary !px-2 !py-1 text-xs"} disabled={busy !== null} onClick={() => toggleChar(c)}>{c.status === "approved" ? "Remover aprovação" : "Aprovar"}</button>
+                      <button className="text-[11px] text-red-400 hover:underline" onClick={() => removeFromProject(c.id)}>Remover</button>
+                    </div>} />
                 ))}
               </div>
             )}
@@ -170,9 +195,17 @@ export default function ProjectDetail() {
           <div className="card flex flex-wrap items-center justify-between gap-3 p-5">
             <div>
               <h3 className="font-medium text-white">Aprovar personagens</h3>
-              <p className="text-sm text-zinc-400">{p.step_status?.characters === "approved" ? "Etapa aprovada. Siga para a aba Roteiro." : allApproved ? "Todos aprovados. Você pode concluir esta etapa." : "Aprove cada personagem (com imagem principal) para concluir a etapa."}</p>
+              <p className="text-sm text-zinc-400">
+                {!chars.length ? "Gere ou adicione personagens primeiro."
+                  : stepDone ? "Etapa concluída. Siga para a aba Roteiro."
+                  : `${approvedCount} de ${chars.length} aprovados. Aprove um a um nos cartões acima, ou aprove todos de uma vez.`}
+              </p>
             </div>
-            <button className="btn-primary" disabled={!allApproved || p.step_status?.characters === "approved" || busy !== null} onClick={approveStep}>Concluir etapa</button>
+            <div className="flex gap-2">
+              {stepDone
+                ? <Link to={`/projects/${p.id}/script`} className="btn-primary">Ir para o Roteiro →</Link>
+                : <button className="btn-primary" disabled={!chars.length || busy !== null} onClick={approveAll}>{busy === "approve" && <Spinner />}Aprovar todos e concluir etapa</button>}
+            </div>
           </div>
         </section>
       </div>

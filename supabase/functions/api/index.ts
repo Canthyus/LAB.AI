@@ -5,6 +5,7 @@ import agnesJobs from "./handlers/agnes-jobs.ts";
 import charactersAi from "./handlers/characters-ai.ts";
 import storyAi from "./handlers/story-ai.ts";
 import videoAi from "./handlers/video-ai.ts";
+import stylesAi from "./handlers/styles-ai.ts";
 
 const routes: Record<string, (req: Request) => Promise<unknown>> = {
   "agnes-settings": agnesSettings,
@@ -12,6 +13,7 @@ const routes: Record<string, (req: Request) => Promise<unknown>> = {
   "characters-ai": charactersAi,
   "story-ai": storyAi,
   "video-ai": videoAi,
+  "styles-ai": stylesAi,
 };
 
 Deno.serve(handle(async (req) => {

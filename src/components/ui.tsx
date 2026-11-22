@@ -64,7 +64,8 @@ export const Badge = ({ status }: { status: string }) => (
 export const PURPOSE: Record<string, string> = {
   character_main: "Personagem — imagem principal", character_sheet: "Personagem — folha de referência",
   character_extract: "Extração de personagens", character_prompt: "Prompt visual do personagem",
-  storyboard: "Storyboard", shot_video: "Vídeo do plano",
+  storyboard: "Storyboard", shot_video: "Vídeo do plano", style_preview: "Prévia de universo visual",
+  script_generate: "Geração de roteiro", script_edit: "Edição de roteiro", storyboard_scenes: "Cenas do storyboard", shots_generate: "Planos cinematográficos",
 };
 export const purposeLabel = (p: string) => PURPOSE[p] ?? p;
 export const fmtDate = (s: string) => new Date(s).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
